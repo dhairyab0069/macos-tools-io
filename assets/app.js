@@ -1,4 +1,5 @@
-/* Page glue: scale each drawn screen to its frame, the Sound switch, start the two recreations. */
+/* Page glue: scale each drawn screen to its frame and start the two recreations.
+   The Sound, Motion and Effects switches live in prefs.js; the workbench in bench.js and toolbox.js. */
 (function (root) {
   "use strict";
   var S = root.MT_SFX;
@@ -24,15 +25,8 @@
     root.MT_initDepDeck();
     Array.prototype.forEach.call(document.querySelectorAll(".stage"), fit);
 
-    var btn = document.getElementById("snd"), lbl = btn.querySelector(".lbl");
-    function show() { btn.setAttribute("aria-pressed", String(S.isOn())); lbl.textContent = S.isOn() ? "Sound on" : "Sound off"; }
-    btn.addEventListener("click", function () { S.set(!S.isOn()); show(); });
-    show();
-    // a remembered "on" needs one gesture before the browser lets audio start
-    var unlock = function () { if (S.isOn()) S.set(true); document.removeEventListener("pointerdown", unlock, true); };
-    document.addEventListener("pointerdown", unlock, true);
     // softly click on plain buttons outside the drawn screens too
-    document.addEventListener("click", function (e) { if (e.target.closest(".btn, .mbtn, .seg button")) S.play("click"); });
+    document.addEventListener("click", function (e) { if (e.target.closest(".btn, .mbtn, .seg button, .chip, .tbtn")) S.play("click"); });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })(window);

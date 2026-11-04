@@ -4,7 +4,7 @@
   "use strict";
   var D = root.MT_DATA, L = root.MT_LOGIC, S = root.MT_SFX;
   var W = 960, H = 600, SIZES = { taskbar: 30, dock: 44, column: 172, strip: 118, folders: 138 };
-  var reduce = function () { return root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches; };
+  var reduce = function () { return (root.MT_PREFS && !root.MT_PREFS.motion()) || (root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches); };
   var wait = function (ms) { return new Promise(function (r) { setTimeout(r, reduce() ? 0 : ms); }); };
   var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var FILE_ICON = { doc: "doc", pdf: "doc", csv: "doc", zip: "zip", dmg: "zip", image: "image", png: "image", music: "music", code: "code", folder: "folder" };
@@ -158,7 +158,7 @@
     });
     elWidgets.addEventListener("input", function (e) { if (e.target.getAttribute("data-act") === "scrub") { st.pos = +e.target.value; var t = elWidgets.querySelector(".np-time"); if (t) t.innerHTML = "<span>" + L.mmss(st.pos) + "</span><span>-" + L.mmss(D.nowPlaying.length - st.pos) + "</span>"; } });
     function tickWidgets() {
-      if (document.hidden || !visible) return;
+      if (document.hidden || !visible || reduce()) return;   // the numbers only move while motion is on
       var np = D.nowPlaying;
       if (st.playing) { st.pos += 1; if (st.pos >= np.length) st.pos = 0; }
       st.cpu = Math.min(0.9, Math.max(0.05, st.cpu + (Math.random() - 0.5) * 0.12));
@@ -608,7 +608,7 @@
     setInterval(function () { var c = document.getElementById("sh-clock"); if (c) c.textContent = L.clock(new Date()); }, 20000);
 
     st = fresh(); relayout();
-    root.MT_SH = { state: function () { return st; }, openStart: openStart, openApp: openApp, openFolderById: function (id) { var t = elFolders.querySelector('[data-id="' + id + '"]'); if (t) t.click(); }, openExplorer: openExplorer, runIn: function (line) { var w = st.wins.filter(function (x) { return x.kind === "terminal"; })[0]; if (w) { w.log.push("~ % " + line); runCommand(line, w); syncWins(); var out = elWins.querySelector('[data-id="' + w.id + '"] .term-out'); if (out) out.innerHTML = w.log.map(function (l) { return "<div>" + esc(l) + "</div>"; }).join(""); } }, openSub: function (k) { openSub(elStart.querySelector('[data-k="' + k + '"]'), k); } };
+    root.MT_SH = { state: function () { return st; }, shuffle: function () { var ids = folderList().map(function (f) { return f.id; }); for (var i = ids.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = ids[i]; ids[i] = ids[j]; ids[j] = t; } st.order = ids; renderFolders(); st.cpu = 0.1 + Math.random() * 0.7; st.mem = 0.45 + Math.random() * 0.35; st.battery.level = 20 + Math.floor(Math.random() * 80); renderWidgets(); say("Sample data shuffled: folders, battery and load changed."); }, openStart: openStart, openApp: openApp, openFolderById: function (id) { var t = elFolders.querySelector('[data-id="' + id + '"]'); if (t) t.click(); }, openExplorer: openExplorer, runIn: function (line) { var w = st.wins.filter(function (x) { return x.kind === "terminal"; })[0]; if (w) { w.log.push("~ % " + line); runCommand(line, w); syncWins(); var out = elWins.querySelector('[data-id="' + w.id + '"] .term-out'); if (out) out.innerHTML = w.log.map(function (l) { return "<div>" + esc(l) + "</div>"; }).join(""); } }, openSub: function (k) { openSub(elStart.querySelector('[data-k="' + k + '"]'), k); } };
   }
   root.MT_initShell = init;
 })(window);

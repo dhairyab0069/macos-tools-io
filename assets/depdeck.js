@@ -2,7 +2,7 @@
 (function (root) {
   "use strict";
   var D = root.MT_DATA, L = root.MT_LOGIC, S = root.MT_SFX;
-  var reduce = function () { return root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches; };
+  var reduce = function () { return (root.MT_PREFS && !root.MT_PREFS.motion()) || (root.matchMedia && root.matchMedia("(prefers-reduced-motion: reduce)").matches); };
   var wait = function (ms) { return new Promise(function (r) { setTimeout(r, reduce() ? Math.min(ms, 120) : ms); }); };
   var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
   var TABS = [
@@ -149,6 +149,7 @@
     }
     function updateAll() {
       var ids = L.outdated(st.pkgs).map(function (p) { return p.id; });
+      if (ids.length) S.play("ratchetRun");
       return ids.reduce(function (chain, id) { return chain.then(function () { return update(id); }); }, Promise.resolve());
     }
     function uninstall(id) {
@@ -254,7 +255,9 @@
 
     st = fresh(); st.refreshing = true; updateBar();
     wait(900).then(function () { st.refreshing = false; st.refreshed = new Date(); if (st.open) render(); });
-    root.MT_DD = { state: function () { return st; }, open: openPop };
+    root.MT_DD = { state: function () { return st; }, open: openPop, reset: reset,
+      // a new random set of outdated packages (sample data only)
+      shuffle: function () { st.pkgs = L.shuffled(st.pkgs, Math.random); st.error = null; if (st.open) render(); updateBar(); say("Sample data shuffled: " + L.updatesHeadline(L.outdated(st.pkgs).length) + "."); } };
   }
   root.MT_initDepDeck = init;
 })(window);

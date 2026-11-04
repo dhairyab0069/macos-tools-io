@@ -182,13 +182,13 @@ ok("folders: unique ids, items typed, and one real folder inside a folder to zoo
 });
 
 /* ---------- the page ---------- */
-const allJs = ["assets/data.js", "assets/logic.js", "assets/sfx.js", "assets/depdeck.js", "assets/shell.js", "assets/app.js"].map(read).join("\n");
+const allJs = ["assets/data.js", "assets/logic.js", "assets/prefs.js", "assets/sfx.js", "assets/bench.js", "assets/toolbox.js", "assets/depdeck.js", "assets/shell.js", "assets/app.js"].map(read).join("\n");
 ok("every id the scripts look up exists in the page", () => {
   // ids in the page, plus ids the scripts write into the DOM they build (id=\"...\" inside strings)
   const ids = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]).concat([...allJs.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1])));
   const wanted = [...allJs.matchAll(/getElementById\("([^"]+)"\)/g)].map((m) => m[1]);
   for (const id of new Set(wanted)) assert.ok(ids.has(id), "missing #" + id);
-  for (const s of ["data", "logic", "sfx", "depdeck", "shell", "app"]) assert.ok(html.includes(`assets/${s}.js`) && fs.existsSync(path.join(root, `assets/${s}.js`)), s);
+  for (const s of ["data", "logic", "prefs", "sfx", "bench", "toolbox", "depdeck", "shell", "app"]) assert.ok(html.includes(`assets/${s}.js`) && fs.existsSync(path.join(root, `assets/${s}.js`)), s);
 });
 ok("no external requests: nothing but same-site files is loaded", () => {
   const loads = [...html.matchAll(/<(?:script|link|img|source|iframe)\b[^>]*?(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((u) => !/^#/.test(u));
@@ -228,15 +228,55 @@ ok("css respects reduced motion and dark mode", () => {
   assert.ok(/prefers-reduced-motion: reduce/.test(css) && /prefers-color-scheme: dark/.test(css));
   assert.ok(!/font-face|fonts\./.test(css));
 });
-ok("sound is off by default, synthesized, and needs no audio files", () => {
-  const ctx = { window: {}, document: { hidden: false }, localStorage: { getItem: () => null, setItem() {} } };
+ok("sound defaults on, is synthesized, needs a first gesture and no audio files", () => {
+  const listeners = [];
+  const ctx = { window: { addEventListener: (n) => listeners.push(n) }, document: { hidden: false, addEventListener() {} } };
   ctx.globalThis = ctx; vm.runInNewContext(read("assets/sfx.js"), ctx);
-  assert.equal(ctx.window.MT_SFX.isOn(), false);
-  assert.doesNotThrow(() => ctx.window.MT_SFX.play("click"), "playing while off is a no-op");
+  assert.equal(ctx.window.MT_SFX.isOn(), true);
+  assert.ok(listeners.includes("pointerdown") && listeners.includes("keydown") && listeners.includes("touchstart"), "audio unlocks on the first pointer, key or touch");
+  assert.doesNotThrow(() => ctx.window.MT_SFX.play("click"), "playing before the context is running is a no-op");
   assert.ok(/createOscillator/.test(read("assets/sfx.js")));
   assert.ok(!/<audio|new Audio\(|(src|href)=["'][^"']*\.(mp3|wav|ogg|m4a)/i.test(html + allJs));
-  assert.ok(html.includes('id="snd"') && html.includes("Sound off"));
   assert.deepEqual(fs.readdirSync(path.join(root, "assets")).filter((f) => /\.(mp3|wav|ogg|m4a)$/i.test(f)), []);
+});
+ok("symbol controls: real buttons with aria-pressed, labels in words, 44px, fresh storage keys", () => {
+  for (const id of ["b-sound", "b-motion", "b-fx", "b-quiet"]) assert.match(html, new RegExp('<button[^>]*id="' + id + '"[^>]*aria-pressed="(true|false)"[^>]*aria-label="[^"]+"[^>]*title="[^"]+"'));
+  assert.ok(/\.ico \{[^}]*width: 44px; height: 44px/.test(css) && /\.ico:focus-visible/.test(css));
+  assert.ok(!html.includes("emoji") && !/id="snd"/.test(html));
+  const K = require("../assets/prefs.js").KEYS;
+  assert.deepEqual(Object.values(K), ["mt2-sound", "mt2-motion", "mt2-fx"]);
+  assert.ok(!Object.values(K).includes("macos-tools-sound"), "the old key cannot carry an old 'off' over");
+});
+ok("prefs: sound, motion and effects default on; reduced motion starts motion off", () => {
+  const P = require("../assets/prefs.js");
+  assert.deepEqual(P.resolve({}, false), { sound: true, motion: true, fx: true });
+  assert.deepEqual(P.resolve({ sound: "off", motion: "off", fx: "off" }, false), { sound: false, motion: false, fx: false });
+  assert.deepEqual(P.resolve({ motion: "on" }, true), { sound: true, motion: false, fx: true }, "the system setting wins");
+  assert.equal(P.label("sound", true), "Sound on"); assert.equal(P.label("fx", false), "Effects off");
+});
+ok("prefs: Quiet everything turns all off and, pressed again, restores the previous state", () => {
+  const P = require("../assets/prefs.js");
+  const before = { sound: true, motion: true, fx: false };
+  const q1 = P.quiet(before, { on: false, prev: null }, false);
+  assert.deepEqual(q1.state, { sound: false, motion: false, fx: false }); assert.equal(q1.q.on, true);
+  const q2 = P.quiet(q1.state, q1.q, false);
+  assert.deepEqual(q2.state, before); assert.equal(q2.q.on, false);
+  assert.equal(P.quiet(q1.state, q1.q, true).state.motion, false, "restoring never turns motion on under reduced motion");
+});
+ok("shuffle: outdated always has a newer version; deprecated and disabled are left alone", () => {
+  const seq = [0.1, 0.9, 0.2, 0.8]; let i = 0;
+  const out = L.shuffled([pkg({ installed: "1.2.9" }), pkg({ name: "b", installed: "2.0" }), pkg({ name: "c", installed: "3.1.0", outdated: true, latest: "3.2.0" }), pkg({ name: "d", deprecated: true, installed: "0.1", latest: "0.1" })], () => seq[i++ % 4]);
+  assert.equal(out[0].outdated, true); assert.equal(out[0].latest, "1.2.10");
+  assert.equal(out[1].outdated, false); assert.equal(out[1].latest, "2.0");
+  assert.equal(out[3].outdated, undefined, "deprecated package untouched");
+  assert.equal(L.bumpVersion("0.2021.12.17"), "0.2021.12.18");
+  for (const p of D.packages) assert.ok(!L.shuffled([p], () => 0.1)[0].outdated || L.shuffled([p], () => 0.1)[0].latest !== p.installed || L.hasIssue(p));
+});
+ok("every animation or loop is gated by the switches", () => {
+  assert.ok(/html\[data-motion="off"\] \*/.test(css) && /prefers-reduced-motion: reduce/.test(css));
+  assert.ok(/P\.motion\(\)/.test(read("assets/bench.js")) && /visibilitychange/.test(read("assets/bench.js")));
+  assert.ok(/MT_PREFS/.test(read("assets/depdeck.js")) && /MT_PREFS/.test(read("assets/shell.js")));
+  assert.equal((read("assets/bench.js").match(/requestAnimationFrame\(loop\)/g) || []).length, 2, "one loop, started in one place");
 });
 ok("no commit-trailer or tool credit text slipped into the page", () => {
   assert.ok(!/Co-Authored-By|Generated with/i.test(html + allJs + read("README.md")));

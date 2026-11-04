@@ -39,6 +39,21 @@
     q.installed = p.latest || p.installed; q.outdated = false;
     return q;
   }
+  // "Shuffle sample data": a new random set of outdated packages (never touches deprecated or disabled ones,
+  // and an outdated package always has a newer version than the installed one). rand() returns [0, 1).
+  function bumpVersion(v) {
+    var parts = String(v).split(".");
+    for (var i = parts.length - 1; i >= 0; i--) if (/^\d+$/.test(parts[i])) { parts[i] = String(+parts[i] + 1); return parts.join("."); }
+    return v + ".1";
+  }
+  function shuffled(list, rand) {
+    return list.map(function (p) {
+      var q = Object.assign({}, p);
+      if (hasIssue(p)) return q;
+      q.outdated = rand() < 0.4; q.latest = q.outdated ? bumpVersion(p.installed) : p.installed;
+      return q;
+    });
+  }
   function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
   function updatesHeadline(n) { return plural(n, "update", "updates") + " available"; }
   function failureMessage(cmd) {
@@ -158,7 +173,7 @@
   var API = {
     id: id, hasIssue: hasIssue, issueLabel: issueLabel, outdated: outdated, issues: issues, menuBarLabel: menuBarLabel,
     versionText: versionText, filterInstalled: filterInstalled, sortByName: sortByName, search: search, upgraded: upgraded,
-    updatesHeadline: updatesHeadline, failureMessage: failureMessage, upgradeCommand: upgradeCommand,
+    updatesHeadline: updatesHeadline, bumpVersion: bumpVersion, shuffled: shuffled, failureMessage: failureMessage, upgradeCommand: upgradeCommand,
     GAP: GAP, cut: cut, freeArea: freeArea, layout: layout, FOLDER_WIDTH: FOLDER_WIDTH,
     searchApps: searchApps, searchFiles: searchFiles, frequent: frequent, togglePin: togglePin, enabledByKey: enabledByKey,
     parseCtl: parseCtl, monthGrid: monthGrid, clock: clock, mmss: mmss

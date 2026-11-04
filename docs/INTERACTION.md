@@ -15,4 +15,4 @@ The owner said the interaction "feels weird". What was wrong, and what changed. 
 | Canvas cost | About a thousand fills per frame at 30 fps | Resting dots drawn in one path, 25 fps, stops when hidden or motion is off |
 | Focus vanished when a card moved to the slot | The focused node was re-parented | Focus is restored to the same control |
 
-Theme: see the Theme section of the README. The Quiet button's icon changed from a moon to a pause ring because the moon now means Dark.
+Theme: see the Theme section of the README. The Quiet button is a circle with a bar (do not disturb), and Effects is a sparkle, so neither looks like the sun, moon or pause symbols used elsewhere.

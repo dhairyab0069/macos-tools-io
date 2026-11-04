@@ -43,7 +43,7 @@
     nextMode = clean(nextMode);
     if (nextMode === mode) return;
     mode = nextMode;
-    if (persist) { try { localStorage.setItem(KEY, mode); } catch (e) {} }
+    if (persist) { try { localStorage.setItem("theme", mode); } catch (e) {} }
     var next = resolve(mode);
     if (next === theme) { paint(); announce(); return; }
     transition(function () { theme = next; paint(); announce(); }, origin);
@@ -62,7 +62,7 @@
   // another page of this site changed the choice: apply it here, live, without writing it back
   root.addEventListener("storage", function (e) {
     if (e.key !== null && e.key !== KEY) return;
-    var m; try { m = localStorage.getItem(KEY); } catch (x) {}
+    var m; try { m = localStorage.getItem("theme"); } catch (x) {}
     apply(clean(m), null, false, false);
   });
   // in auto, follow the system

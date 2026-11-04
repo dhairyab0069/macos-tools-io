@@ -102,3 +102,7 @@ requests, canonical and Open Graph tags, the default-on switches (including Quie
 sound is synthesized with no audio files.
 
 Hosted by GitHub Pages from `main` (the root); `.nojekyll` is present.
+
+## Design
+
+[DESIGN.md](DESIGN.md) documents the design (purpose, theme, tokens, motion, sound, controls, accessibility, decisions, how to extend).

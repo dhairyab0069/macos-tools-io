@@ -26,7 +26,8 @@
   }
   function bring(frame) {
     var r = frame.getBoundingClientRect(), vh = root.innerHeight;
-    if (r.top < 60 || r.bottom > vh - 10) frame.scrollIntoView({ behavior: smooth(), block: r.height < vh - 140 ? "center" : "start" });
+    // keep the frame clear of the sticky bar (72px) and the dock (about 76px)
+    if (r.top < 72 || r.bottom > vh - 84) frame.scrollIntoView({ behavior: smooth(), block: r.height < vh - 170 ? "center" : "start" });
   }
 
   /* ---------------- tray, cards and the Now using slot ---------------- */
@@ -42,28 +43,31 @@
   }
   function putBack(id, quiet) {
     var c = cards[id]; if (!c) return;
-    c.classList.remove("docked"); c.style.transform = "";
+    var hadFocus = c.contains(doc.activeElement) ? doc.activeElement : null;
+    c.classList.remove("docked", "lifted");
     if (id === "dd") tray.insertBefore(c, tray.firstChild); else tray.appendChild(c);
     if (state.use === id) state.use = null;
     slotEmpty.hidden = !!state.use; eject.hidden = !state.use;
     lamps();
+    if (hadFocus && hadFocus.focus) hadFocus.focus({ preventScroll: true });
     if (!quiet) { slotNote.textContent = "Put " + NAME[id] + " back in the tray. The drawn screens are still below."; play("shut"); }
   }
   function useTool(id) {
     var c = cards[id]; if (!c) return;
     if (state.use && state.use !== id) putBack(state.use, true);
-    c.style.transform = ""; c.classList.remove("dragging");
+    var hadFocus = c.contains(doc.activeElement) ? doc.activeElement : null;
+    c.classList.remove("lifted");
     slotBody.appendChild(c); c.classList.add("docked");
     state.use = id; slotEmpty.hidden = true; eject.hidden = false; slot.classList.remove("hot");
     lamps();
+    if (hadFocus && hadFocus.focus) hadFocus.focus({ preventScroll: true });
     play("lid");
     slotNote.textContent = NAME[id] + " loaded in the Now using slot: its drawn screen (an in-page recreation) is lit below, and Reset, Shuffle and Copy build in the dock now act on it.";
     bring(frames[id]);
     setTimeout(function () {
       if (id === "dd" && root.MT_DD) { var st = root.MT_DD.state(); if (!st.quit && !st.open) root.MT_DD.open(true); spot($("dd-item")); }
       if (id === "sh" && root.MT_SH) spot($("sh-startbtn"));
-      play("bolt");
-    }, 380);
+    }, 200);
   }
   var justDragged = false;
   function flip(card, btn) {
@@ -78,41 +82,91 @@
     var b = e.target.closest("[data-do]"); if (!b) return;
     var card = b.closest(".tcard"); if (!card) return;
     var id = card.getAttribute("data-card"), a = b.getAttribute("data-do");
-    if (a === "grip") { if (justDragged) return; if (state.use === id) putBack(id); else useTool(id); }
+    if (a === "grip") { if (justDragged || e.detail > 0) return; if (state.use === id) putBack(id); else useTool(id); }   // a mouse click on the grip does nothing; Enter or Space (detail 0) loads the tool
     else if (a === "use") { if (state.use === id) putBack(id); else useTool(id); }
     else if (a === "flip") flip(card, b);
   }
   eject.addEventListener("click", function () { if (state.use) putBack(state.use); });
-  // drag by the grip
+  // Drag by the grip. Nothing moves until the pointer has travelled 6 px (10 px for touch). Then a ghost of
+  // the card follows the pointer and the real card stays behind as a dashed outline. Over the slot the slot
+  // lights up solid; releasing there glides the ghost into the slot and seats the card. Released anywhere
+  // else, the ghost glides straight back and a note says so (a card already in the slot goes back to the
+  // tray only when released over the tray). Escape cancels. Reduced motion: no glide, the card just moves.
   (function () {
-    var drag = null;
-    function over(x, y) { var r = slot.getBoundingClientRect(); return x > r.left - 24 && x < r.right + 24 && y > r.top - 24 && y < r.bottom + 24; }
+    var drag = null, glide = 0;
+    function inside(el, x, y, pad) { var r = el.getBoundingClientRect(); return x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad; }
+    function paint(d, x, y) {
+      var dx = x - d.x, dy = y - d.y;
+      d.ghost.style.transform = "translate(" + Math.round(d.r.left + dx) + "px," + Math.round(d.r.top + dy) + "px)";
+      d.ghost.style.rotate = Math.max(-4, Math.min(4, dx * 0.02)).toFixed(1) + "deg";
+    }
+    function clean(d) {
+      if (d.ghost && d.ghost.parentNode) d.ghost.parentNode.removeChild(d.ghost);
+      d.card.classList.remove("lifted"); html().classList.remove("carrying"); slot.classList.remove("hot"); tray.classList.remove("back-here");
+    }
+    function html() { return doc.documentElement; }
+    function glideTo(d, rect, done) {
+      var g = d.ghost;
+      if (!P || !P.motion()) { clean(d); done(); return; }
+      g.classList.add("glide"); g.style.rotate = "0deg";
+      g.style.transform = "translate(" + Math.round(rect.left) + "px," + Math.round(rect.top) + "px)";
+      var fin = false; function end() { if (fin) return; fin = true; clean(d); done(); }
+      g.addEventListener("transitionend", end, { once: true }); glide = setTimeout(end, 480);
+    }
+    function cancel(d, msg) {
+      var home = d.card.getBoundingClientRect();
+      glideTo(d, home, function () { if (msg) slotNote.textContent = msg; });
+    }
     doc.addEventListener("pointerdown", function (e) {
-      var g = e.target.closest && e.target.closest(".grip"); if (!g || e.button > 0) return;
-      var card = g.closest(".tcard"); drag = { card: card, id: card.getAttribute("data-card"), x: e.clientX, y: e.clientY, on: false, pid: e.pointerId, g: g };
+      var g = e.target.closest && e.target.closest(".grip"); if (!g || e.button > 0 || drag) return;
+      var card = g.closest(".tcard");
+      drag = { card: card, id: card.getAttribute("data-card"), x: e.clientX, y: e.clientY, on: false, pid: e.pointerId, g: g, touch: e.pointerType === "touch" };
     });
     doc.addEventListener("pointermove", function (e) {
       if (!drag || e.pointerId !== drag.pid) return;
       var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
       if (!drag.on) {
-        if (dx * dx + dy * dy < 36) return;
-        drag.on = true; drag.card.classList.add("dragging"); try { drag.g.setPointerCapture(e.pointerId); } catch (x) {} play("pickup");
+        var th = drag.touch ? 10 : 6;
+        if (dx * dx + dy * dy < th * th) return;
+        drag.on = true; clearTimeout(glide);
+        var c = drag.card; drag.r = c.getBoundingClientRect();
+        var gh = c.cloneNode(true); gh.removeAttribute("id"); gh.className = "tcard carry-ghost" + (c.classList.contains("sh") ? " sh" : "");
+        gh.style.width = drag.r.width + "px"; gh.style.height = drag.r.height + "px"; gh.setAttribute("aria-hidden", "true");
+        [].forEach.call(gh.querySelectorAll("[id]"), function (n) { n.removeAttribute("id"); });
+        [].forEach.call(gh.querySelectorAll("button"), function (n) { n.tabIndex = -1; });
+        doc.body.appendChild(gh); drag.ghost = gh;
+        c.classList.add("lifted"); html().classList.add("carrying");
+        if (state.use === drag.id) tray.classList.add("back-here");
+        try { drag.g.setPointerCapture(e.pointerId); } catch (x) {}
+        play("pickup");
       }
-      drag.card.style.transform = "translate(" + dx + "px," + dy + "px) rotate(" + Math.max(-7, Math.min(7, dx * 0.03)) + "deg)";
-      slot.classList.toggle("hot", over(e.clientX, e.clientY));
+      paint(drag, e.clientX, e.clientY);
+      slot.classList.toggle("hot", inside(slot, e.clientX, e.clientY, 16));
     });
-    function end(e) {
+    function end(e, abort) {
       if (!drag || e.pointerId !== drag.pid) return;
       var d = drag; drag = null;
+      try { d.g.releasePointerCapture(e.pointerId); } catch (x) {}
       if (!d.on) return;
-      justDragged = true; setTimeout(function () { justDragged = false; }, 80);
-      var hot = over(e.clientX, e.clientY); slot.classList.remove("hot");
-      d.card.classList.remove("dragging");
-      if (hot) { if (state.use !== d.id) useTool(d.id); else { d.card.style.transform = ""; play("drop"); } }
-      else if (state.use === d.id) putBack(d.id);
-      else { d.card.style.transform = ""; play("drop"); slotNote.textContent = "Dropped back in the tray. Drag a card over the Now using slot to load its tool."; }
+      justDragged = true; setTimeout(function () { justDragged = false; }, 120);
+      var overSlot = !abort && inside(slot, e.clientX, e.clientY, 16), overTray = !abort && inside(tray, e.clientX, e.clientY, 0);
+      slot.classList.remove("hot");
+      if (overSlot && state.use !== d.id) {
+        glideTo(d, slotBody.getBoundingClientRect(), function () { useTool(d.id); });
+      } else if (state.use === d.id && overTray) {
+        var spot0 = tray.getBoundingClientRect();
+        glideTo(d, { left: spot0.left + 16, top: spot0.top + 16 }, function () { putBack(d.id); });
+      } else if (state.use === d.id) {
+        cancel(d, NAME[d.id] + " stays in the Now using slot. Drop it on the tray, or press Put it back, to return it.");
+        play("drop");
+      } else {
+        cancel(d, "Not over the Now using slot, so " + NAME[d.id] + " stayed in the tray. Drag it onto the dashed slot to load it.");
+        play("drop");
+      }
     }
-    doc.addEventListener("pointerup", end); doc.addEventListener("pointercancel", end);
+    doc.addEventListener("pointerup", function (e) { end(e, false); });
+    doc.addEventListener("pointercancel", function (e) { end(e, true); });
+    doc.addEventListener("keydown", function (e) { if (e.key === "Escape" && drag && drag.on) { var d = drag; drag = null; slot.classList.remove("hot"); cancel(d, "Move cancelled."); } });
   })();
 
   /* ---------------- chips: light up a part of the drawn screens ---------------- */
@@ -146,8 +200,8 @@
     var c = e.target.closest && e.target.closest("[data-show]"); if (!c) return;
     var a = c.getAttribute("data-show").split(":"), tool = a[0], part = a[1];
     bring(frames[tool]);
-    play("ratchet", 4);
-    setTimeout(function () { if (tool === "dd") ddShow(part); else shShow(part); }, P && P.motion() ? 260 : 0);
+    play("ratchet", 3);
+    setTimeout(function () { if (tool === "dd") ddShow(part); else shShow(part); }, P && P.motion() ? 120 : 0);
   });
 
   /* ---------------- dock ---------------- */

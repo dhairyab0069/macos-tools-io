@@ -15,7 +15,7 @@
     try {
       ctx = new AC();
       var comp = ctx.createDynamicsCompressor();
-      master = ctx.createGain(); master.gain.value = 0.26;
+      master = ctx.createGain(); master.gain.value = 0.2;
       master.connect(comp); comp.connect(ctx.destination);
       noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       var d = noise.getChannelData(0);
@@ -121,6 +121,7 @@
     clunk: function () { thump(0, 0.09, 85); tone({ f: 120, to: 70, type: "triangle", dur: 0.16, gain: 0.04 }); hiss({ type: "lowpass", f: 500, dur: 0.1, gain: 0.04 }); },   // dull: a failed update
     key: function () { pawl(0, R(1800, 2400), 0.012); },
     snap: function () { thump(0, 0.035, 200); clink(0, 3300, 0.022); },                      // a label snapping on
+    theme: function () { clink(0, 2000, 0.02); clink(0.07, 2700, 0.016); },                 // a soft two-note cue when the theme changes
     on: function () { clink(0, 2400, 0.035); clink(0.09, 3200, 0.035); }
   };
   // names the two recreations already use, mapped to tool sounds
@@ -132,6 +133,7 @@
     if (!ready() || !FX[name]) return;
     if (LIMIT[name] && gap(name, LIMIT[name])) return;
     if (name === "tick" && gap("any-hover", 60)) return;
+    if (gap("any", 30)) return;                 // two sounds never start within 30 ms of each other
     try { FX[name](arg); } catch (e) { /* audio must never break the page */ }
   }
   function wake() { if (on && ensure() && ctx.state === "suspended") ctx.resume().catch(function () {}); }

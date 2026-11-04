@@ -282,4 +282,12 @@ ok("no commit-trailer or tool credit text slipped into the page", () => {
   assert.ok(!/Co-Authored-By|Generated with/i.test(html + allJs + read("README.md")));
 });
 
+ok("theme: the shared 'theme' key, an early head script, a three-way radiogroup, and a themechange event", () => {
+  const head = html.slice(0, html.indexOf("</head>"));
+  assert.ok(/localStorage\.getItem\('theme'\)/.test(head) && head.indexOf("data-theme-mode") < head.indexOf("assets/style.css"), "theme resolved before the CSS");
+  assert.ok(/role="radiogroup" aria-label="Color theme"/.test(html) && (html.match(/role="radio"/g) || []).length === 3);
+  assert.ok(/themechange/.test(read("assets/theme.js")) && /themechange/.test(read("assets/bench.js")) && /storage/.test(read("assets/theme.js")));
+  assert.ok(/:root\[data-theme="light"\]/.test(css) && /:root\[data-theme="dark"\]/.test(css) && /:root:not\(\[data-theme\]\)/.test(css));
+});
+
 console.log(`\n${n} checks passed`);

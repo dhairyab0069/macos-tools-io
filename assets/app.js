@@ -26,7 +26,8 @@
     Array.prototype.forEach.call(document.querySelectorAll(".stage"), fit);
 
     // softly click on plain buttons outside the drawn screens too
-    document.addEventListener("click", function (e) { if (e.target.closest(".btn, .mbtn, .seg button, .chip, .tbtn")) S.play("click"); });
+    // (chips, toolbox buttons and the drawn screens play their own sounds, so only plain page buttons click here)
+    document.addEventListener("click", function (e) { if (e.target.closest(".btn, .frame-foot .mbtn, .frame-bar .mbtn")) S.play("click"); });
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })(window);

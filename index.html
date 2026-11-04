@@ -16,6 +16,17 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/png" href="favicon-64.png">
+<script>
+// One shared theme for all of the owner's pages (same origin, one localStorage value): "light", "dark" or
+// "auto" (absent means auto). Resolved here, before the CSS paints, so there is no flash of the wrong theme.
+(function () {
+  var m; try { m = localStorage.getItem('theme'); } catch (e) {}
+  if (m !== 'light' && m !== 'dark') m = 'auto';
+  var t = m === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : m;
+  var r = document.documentElement;
+  r.setAttribute('data-theme-mode', m); r.setAttribute('data-theme', t); r.style.colorScheme = t;
+})();
+</script>
 <link rel="stylesheet" href="assets/style.css">
 <script src="assets/prefs.js"></script>
 </head>
@@ -89,7 +100,12 @@
   </div>
 </header>
 
-<div class="ctl" role="group" aria-label="Sound, motion and effects">
+<div class="ctl" role="group" aria-label="Theme, sound, motion and effects">
+  <div class="theme-seg" role="radiogroup" aria-label="Color theme" data-mode="auto">
+    <button type="button" role="radio" aria-checked="false" data-theme-mode="light" aria-label="Light theme" title="Light theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></svg></button>
+    <button type="button" role="radio" aria-checked="false" data-theme-mode="dark" aria-label="Dark theme" title="Dark theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg></button>
+    <button type="button" role="radio" aria-checked="false" data-theme-mode="auto" aria-label="Match system theme" title="Auto (match system)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg></button>
+  </div>
   <button class="ico" type="button" id="b-sound" aria-pressed="true" aria-label="Sound on" title="Sound on. Press to turn off.">
     <svg class="i" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.500v5h3.500L12 18.500v-13L7.500 9.500z"/><g class="on-only"><path d="M15.500 9a4 4 0 0 1 0 6"/><path d="M18 6.500a8 8 0 0 1 0 11"/></g><path class="off-only" d="M16 9.500l5 5M21 9.500l-5 5"/></svg>
   </button>
@@ -100,7 +116,7 @@
     <svg class="i" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.600"/><g class="on-only"><path d="M12 3.500v3M12 17.500v3M3.500 12h3M17.500 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/></g><path class="off-only" d="M5 19 19 5"/></svg>
   </button>
   <button class="ico" type="button" id="b-quiet" aria-pressed="false" aria-label="Quiet everything" title="Quiet everything: sound, motion and effects off. Press again to bring them back.">
-    <svg class="i" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.500 14.500A8 8 0 0 1 9.500 4.500a8 8 0 1 0 10 10z"/></svg>
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M10 8.800v6.400M14 8.800v6.400"/></svg>
   </button>
 </div>
 <p class="sr" id="mt-live" role="status" aria-live="polite"></p>
@@ -112,7 +128,7 @@
     <p class="lede"><strong>DepDeck</strong> keeps Homebrew, npm and cargo tools up to date from a menu bar popover. <strong>Desktop Shell</strong> swaps the Dock for a Windows XP-style taskbar and Start menu, and adds iOS-style folders and glassy widgets. Both are public on GitHub and built with SwiftUI. Below, you can use a drawing of each.</p>
     <p class="honest"><span class="pill">In-page recreations</span> Everything below is drawn with HTML, CSS and JavaScript from the apps' source code. These are not screenshots and not the apps: the package names, files and songs are sample data, nothing is installed or run, and nothing leaves your browser.</p>
     <p class="hero-links"><a class="btn" href="#depdeck" data-magnet>Try DepDeck</a> <a class="btn alt" href="#shell" data-magnet>Try Desktop Shell</a> <a class="btn ghost" href="#bench" data-magnet>Open the toolbox</a></p>
-    <p class="small hero-sw">The page around the tools is a small workbench: the background reacts to your pointer, and there are tool sounds. Sound, motion and effects start on; the symbols at the top right switch each one off, or all three with the moon.</p>
+    <p class="small hero-sw">The page around the tools is a small workbench: the background reacts to your pointer, and there are tool sounds. Sound, motion and effects start on; the symbols at the top right switch each one off, or all three with the pause ring. The sun, moon and half circle set the page to light, dark or your system, and every other page of this site follows the same choice.</p>
   </section>
 
   <!-- ================= Workbench ================= -->
@@ -362,6 +378,7 @@ cd desktop-shell-mac
 <script src="assets/data.js"></script>
 <script src="assets/logic.js"></script>
 <script src="assets/sfx.js"></script>
+<script src="assets/theme.js"></script>
 <script src="assets/bench.js"></script>
 <script src="assets/depdeck.js"></script>
 <script src="assets/shell.js"></script>

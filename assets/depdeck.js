@@ -205,7 +205,7 @@
     pop.addEventListener("click", function (e) {
       var b = e.target.closest("[data-act]"); if (!b || b.tagName === "SELECT" || b.type === "checkbox") return;
       var a = b.getAttribute("data-act").split(":"), id = a.slice(1).join(":");
-      S.play("click");
+      if (a[0] !== "tab") S.play("click");
       if (a[0] === "tab") { st.tab = id; S.play("tab"); render(); var t = pop.querySelector(".tab.on"); if (t) t.focus(); }
       else if (a[0] === "refresh") refresh();
       else if (a[0] === "quit") quit();
@@ -247,7 +247,10 @@
       Array.prototype.forEach.call(seg, function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-appearance") === a)); });
     }
     Array.prototype.forEach.call(seg, function (b) { b.addEventListener("click", function () { appearance(b.getAttribute("data-appearance")); S.play("tab"); }); });
-    appearance(root.matchMedia && root.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    // the popover follows the page theme like a real macOS popover (the Light and Dark buttons can still override it)
+    function pageTheme() { return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light"; }
+    appearance(pageTheme());
+    root.addEventListener("themechange", function () { appearance(pageTheme()); });
 
     var clock = document.getElementById("dd-clock");
     function tick() { var d = new Date(); clock.textContent = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] + " " + L.clock(d); }

@@ -1,8 +1,10 @@
 /* The workbench around the tools: one canvas and one animation loop for the pegboard background
    (dots that glow and shift around the pointer, tool silhouettes that drift and tilt toward it,
-   sparks on click, a short cursor trail), plus magnetic buttons, hover ticks and the scroll assembly.
+   a few sparks when you click bare background), plus a soft glow inside buttons and the scroll assembly.
+   Buttons never move under the pointer, there is no cursor trail, and no sound plays on hover.
    Everything obeys MT_PREFS: motion off stops the loop (the board is drawn once, still), effects off
-   removes the glow, tilt, sparks, trail and magnets. The loop also stops while the tab is hidden. */
+   removes the glow, tilt and sparks. The loop also stops while the tab is hidden, and re-reads the
+   theme colours on "themechange". */
 (function (root) {
   "use strict";
   var P = root.MT_PREFS, S = root.MT_SFX, doc = document, html = doc.documentElement;
@@ -34,6 +36,7 @@
       return parseInt(x.slice(0, 2), 16) + "," + parseInt(x.slice(2, 4), 16) + "," + parseInt(x.slice(4, 6), 16);
     }
     colors.ink = rgb("--ink", colors.ink); colors.acc = rgb("--dd", colors.acc);
+    colors.warm = html.getAttribute("data-theme") === "dark" ? "255,196,64" : "214,140,0";
   }
   function size() {
     if (!cv) return;
@@ -48,7 +51,7 @@
   function draw(t) {
     if (!ctx) return;
     ctx.clearRect(0, 0, W, H);
-    var fx = P.fx(), moving = P.motion();
+    var fx = P.fx(), moving = P.motion(), dark = html.getAttribute("data-theme") === "dark";
     var gx = ptr.gx, gy = ptr.gy, glow = fx ? ptr.glow : 0;
     // soft glow under the pointer
     if (glow > 0.01) {
@@ -57,16 +60,22 @@
       ctx.fillStyle = g; ctx.fillRect(gx - 260, gy - 260, 520, 520);
     }
     // pegboard dots: they brighten, grow and are pushed away from the pointer
-    var R = 170, off = (moving ? Math.sin(t / 5000) * 2 : 0);
+    var R = 170, off = (moving ? Math.sin(t / 5000) * 2 : 0), lit = [];
+    ctx.fillStyle = "rgba(" + colors.ink + "," + (dark ? 0.09 : 0.11) + ")";
+    ctx.beginPath();                              // every resting dot in one path: one fill instead of about a thousand
     for (var y = GRID / 2; y < H + GRID; y += GRID) {
       for (var x = GRID / 2; x < W + GRID; x += GRID) {
         var dx = x - gx, dy = y - gy, d = Math.sqrt(dx * dx + dy * dy), k = glow && d < R ? (1 - d / R) * glow : 0;
-        var px = x + off, py = y;
-        if (k) { var m = (k * k) * 9 / (d || 1); px += dx * m; py += dy * m; }
-        ctx.fillStyle = k ? "rgba(" + colors.acc + "," + (0.16 + 0.6 * k) + ")" : "rgba(" + colors.ink + ",0.11)";
-        var r = 1.3 + 2.3 * k;
-        ctx.beginPath(); ctx.arc(px, py, r, 0, 6.2832); ctx.fill();
+        if (k > 0.02) { lit.push(x, y, dx, dy, d, k); continue; }
+        ctx.moveTo(x + off + 1.3, y); ctx.arc(x + off, y, 1.3, 0, 6.2832);
       }
+    }
+    ctx.fill();
+    for (var q = 0; q < lit.length; q += 6) {
+      var k2 = lit[q + 5], d2 = lit[q + 4] || 1, px = lit[q] + off, py = lit[q + 1], m = (k2 * k2) * 7 / d2;
+      px += lit[q + 2] * m; py += lit[q + 3] * m;
+      ctx.fillStyle = "rgba(" + colors.acc + "," + (0.16 + 0.55 * k2) + ")";
+      ctx.beginPath(); ctx.arc(px, py, 1.3 + 2 * k2, 0, 6.2832); ctx.fill();
     }
     // tool silhouettes: drift slowly, lean toward the pointer
     ctx.lineWidth = 2.4; ctx.lineJoin = "round"; ctx.lineCap = "round";
@@ -99,7 +108,7 @@
     raf = 0;
     if (!P.motion() || doc.hidden) return;
     raf = root.requestAnimationFrame(loop);
-    if (t - last < 30) return;                   // about 30 frames a second is plenty for a backdrop
+    if (t - last < 40) return;                   // about 25 frames a second is plenty for a backdrop
     last = t; frame++;
     ptr.gx += (ptr.x - ptr.gx) * 0.22; ptr.gy += (ptr.y - ptr.gy) * 0.22;
     ptr.glow += ((ptr.seen ? 1 : 0) - ptr.glow) * 0.12;
@@ -120,59 +129,48 @@
   if (ctx) {
     readColors(); size(); draw(0);
     root.addEventListener("resize", function () { size(); sync(); if (!P.motion()) draw(0); });
-    if (root.matchMedia) { var cm = root.matchMedia("(prefers-color-scheme: dark)"); if (cm.addEventListener) cm.addEventListener("change", function () { readColors(); sync(); }); }
+    root.addEventListener("themechange", function () { readColors(); draw(root.performance ? performance.now() : 0); sync(); });
     P.on(sync);
     doc.addEventListener("visibilitychange", sync);
     sync();
   }
 
-  /* ---------------- pointer: glow, trail, sparks, magnets ---------------- */
-  var lastTrail = 0, magnet = null;
+  /* ---------------- pointer: glow, sparks on bare background, a soft glow inside buttons ---------------- */
+  var magnet = null, magRaf = 0, magEv = null;
   var MAG = ".btn, .chip, .tbtn, .dk, .ico, [data-magnet]";
-  function resetMagnet() { if (magnet) { magnet.style.removeProperty("--mx"); magnet.style.removeProperty("--my"); magnet.classList.remove("mag"); magnet = null; } }
+  function resetMagnet() { if (magnet) { magnet.style.removeProperty("--gx"); magnet.style.removeProperty("--gy"); magnet.classList.remove("mag"); magnet = null; } }
+  function glowStep() {
+    magRaf = 0; var e = magEv; if (!e || !magnet) return;
+    var b = magnet.getBoundingClientRect();
+    magnet.style.setProperty("--gx", Math.round(e.clientX - b.left) + "px"); magnet.style.setProperty("--gy", Math.round(e.clientY - b.top) + "px");
+  }
   doc.addEventListener("pointermove", function (e) {
     ptr.x = e.clientX; ptr.y = e.clientY; if (!ptr.seen) { ptr.gx = e.clientX; ptr.gy = e.clientY; } ptr.seen = true;
-    if (e.pointerType === "touch") return;
-    if (P.sparks()) {
-      var n = performance.now();
-      if (n - lastTrail > 45 && parts.length < 60) { lastTrail = n; parts.push({ x: e.clientX, y: e.clientY, vx: (Math.random() - 0.5) * 0.6, vy: Math.random() * 0.5, g: 0.02, s: 2.4, life: 0.8, dt: 0.06 }); }
-    }
-    if (!P.sparks()) { resetMagnet(); return; }
+    if (e.pointerType !== "mouse" || !P.fx()) { if (magnet) resetMagnet(); return; }
     var el = e.target.closest ? e.target.closest(MAG) : null;
+    if (el && el.disabled) el = null;
     if (el !== magnet) { resetMagnet(); magnet = el; if (el) el.classList.add("mag"); }
-    if (el) {
-      var b = el.getBoundingClientRect(), cx = b.left + b.width / 2, cy = b.top + b.height / 2;
-      el.style.setProperty("--mx", Math.max(-5, Math.min(5, (e.clientX - cx) * 0.14)).toFixed(1) + "px");
-      el.style.setProperty("--my", Math.max(-4, Math.min(4, (e.clientY - cy) * 0.18)).toFixed(1) + "px");
-    }
+    if (el) { magEv = e; if (!magRaf) magRaf = root.requestAnimationFrame(glowStep); }
   }, { passive: true });
   doc.addEventListener("mouseout", function (e) { if (!e.relatedTarget) { ptr.seen = false; resetMagnet(); } });
   root.addEventListener("blur", function () { ptr.seen = false; });
-  doc.addEventListener("pointerdown", function (e) { spark(e.clientX, e.clientY, 10); }, { passive: true });
-  P.on(function () { if (!P.sparks()) resetMagnet(); });
-
-  // hover ticks: a soft metal tick, mouse only, rate-limited inside the sound module too
-  var TICK = ".btn, .chip, .tbtn, .dk, .ico, .tcard, .grip, .top nav a, .seg button, .mbtn";
-  doc.addEventListener("pointerover", function (e) {
-    if (e.pointerType !== "mouse" || !e.target.closest) return;
-    var el = e.target.closest(TICK);
-    if (!el || el.disabled || (e.relatedTarget && el.contains(e.relatedTarget))) return;
-    if (S) S.play("tick");
+  // sparks only for a deliberate click on bare background, never on anything you can press, read or drag
+  var BUSY = "a, button, input, select, textarea, label, summary, [role], [data-do], .frame, .tcard, .slot, .card, .code-card, .built, .bench-dock, .ctl, .top, .tray, .honest, p, h1, h2, h3, li, pre, figure";
+  doc.addEventListener("pointerdown", function (e) {
+    if (e.pointerType !== "mouse" || e.button !== 0 || !P.sparks()) return;
+    if (e.target.closest && e.target.closest(BUSY)) return;
+    spark(e.clientX, e.clientY, 7);
   }, { passive: true });
+  P.on(function () { if (!P.fx()) resetMagnet(); });
 
   /* ---------------- scroll assembly: parts slide in, bolts tighten, labels snap on ---------------- */
   var targets = ".tool-head, .chips, .frame, .card, .code-card, .tcard, .slot, .built, .tray-sec > .lede, .build .lede";
   var items = [].slice.call(doc.querySelectorAll(targets));
   items.forEach(function (el) { el.classList.add("asm"); });
-  var snapAt = 0;
-  function reveal(el, i) {
-    el.style.setProperty("--d", (i * 90) + "ms");
+    function reveal(el, i) {
+    el.style.setProperty("--d", (i * 50) + "ms");
     el.classList.add("in");
-    root.setTimeout(function () { el.classList.remove("asm"); }, 1600 + i * 90);   // later transforms (drag, magnets) must not inherit the entrance delay
-    if (P.motion() && S && (el.matches(".card, .code-card, .tcard, .slot, .built"))) {
-      var now = Date.now(); if (now - snapAt < 140) return; snapAt = now;
-      root.setTimeout(function () { if (P.motion() && !doc.hidden) S.play(el.matches(".built") ? "tape" : (i % 2 ? "bolt" : "snap")); }, i * 90 + 260);
-    }
+    root.setTimeout(function () { el.classList.remove("asm"); }, 900 + i * 50);   // later transforms must not inherit the entrance transition
   }
   if (root.IntersectionObserver) {
     var order = 0, lastBatch = 0;

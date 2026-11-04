@@ -137,7 +137,7 @@
       var cal = '<table class="mini-cal" aria-label="' + title + '"><caption>' + title + '</caption><thead><tr>' + "SMTWTFS".split("").map(function (d, i) { return '<th scope="col" abbr="' + ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][i] + '">' + d + '</th>'; }).join("") + '</tr></thead><tbody>' +
         grid.map(function (w) { return "<tr>" + w.map(function (d) { var t = d && d === today.getDate() && now.getMonth() === today.getMonth() && now.getFullYear() === today.getFullYear(); return "<td" + (t ? ' class="today" aria-current="date"' : "") + ">" + (d || "") + "</td>"; }).join("") + "</tr>"; }).join("") + '</tbody></table>';
       var np = D.nowPlaying, bat = st.battery, used = D.storage.totalGB - D.storage.freeGB;
-      elWidgets.innerHTML =
+      morphInto(elWidgets,
         '<button type="button" class="w-fold" data-act="fold" aria-label="' + (st.collapsed ? "Unfold the widget panel" : "Fold the widget panel into a tab") + '" title="' + (st.collapsed ? "Unfold" : "Fold into a tab") + '">' + (st.collapsed ? "◀" : "▶") + '</button>' +
         (st.collapsed ? "" : '<div class="w-cards">' +
         (st.s.showNowPlaying ? '<section class="wc np" aria-label="Now Playing (sample)"><div class="np-top"><div class="art' + (st.playing ? " live" : "") + '">' + (st.s.youtubeLoops ? '<i title="With no Apple Music motion artwork, the app loops a part of the song\'s YouTube video">loop</i>' : "") + '</div><div class="np-t"><b>' + esc(np.title) + '</b><span>' + esc(np.artist) + '</span></div></div>' +
@@ -146,7 +146,28 @@
         '<section class="wc cal" aria-label="Calendar">' + cal + '</section>' +
         '<section class="wc bat" aria-label="Battery (sample)"><b>Battery</b><button type="button" class="batt" data-act="plug" aria-label="Battery ' + bat.level + ' percent, ' + (bat.charging ? "charging" : "on battery") + '. Press to plug or unplug."><span class="cell"><i style="width:' + bat.level + '%"></i></span><span class="pct">' + bat.level + '%</span>' + (bat.charging ? '<span class="bolt">' + g("bolt", 12) + '</span>' : "") + '</button></section>' +
         '<section class="wc sys" aria-label="CPU and memory (sample)"><b>CPU &amp; Memory</b><div class="meter"><span>CPU</span><i><u style="width:' + Math.round(st.cpu * 100) + '%"></u></i><em>' + Math.round(st.cpu * 100) + '%</em></div><div class="meter"><span>RAM</span><i><u style="width:' + Math.round(st.mem * 100) + '%"></u></i><em>' + Math.round(st.mem * 100) + '%</em></div></section>' +
-        '<section class="wc disk" aria-label="Storage (sample)"><b>Storage</b><div class="meter"><i><u style="width:' + Math.round(used / D.storage.totalGB * 100) + '%"></u></i></div><small>' + D.storage.freeGB + ' GB free of ' + D.storage.totalGB + ' GB</small></section></div>');
+        '<section class="wc disk" aria-label="Storage (sample)"><b>Storage</b><div class="meter"><i><u style="width:' + Math.round(used / D.storage.totalGB * 100) + '%"></u></i></div><small>' + D.storage.freeGB + ' GB free of ' + D.storage.totalGB + ' GB</small></section></div>'));
+    }
+    // Update the widgets in place instead of rebuilding them: a rebuild every second swallowed clicks that
+    // began before it, dropped hover, and restarted the artwork animation each time.
+    function morphInto(host, html) {
+      var tmp = document.createElement("div"); tmp.innerHTML = html;
+      (function sync(a, b) {
+        var ac = a.childNodes, bc = b.childNodes, i;
+        for (i = 0; i < bc.length; i++) {
+          var x = ac[i], y = bc[i];
+          if (!x) { a.appendChild(y.cloneNode(true)); continue; }
+          if (x.nodeType !== y.nodeType || x.nodeName !== y.nodeName) { a.replaceChild(y.cloneNode(true), x); continue; }
+          if (y.nodeType === 3) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; continue; }
+          if (y.nodeType !== 1) continue;
+          var j, an = x.attributes, bn = y.attributes;
+          for (j = an.length - 1; j >= 0; j--) if (!y.hasAttribute(an[j].name)) x.removeAttribute(an[j].name);
+          for (j = 0; j < bn.length; j++) if (x.getAttribute(bn[j].name) !== bn[j].value) x.setAttribute(bn[j].name, bn[j].value);
+          if (x.nodeName === "INPUT" && document.activeElement !== x) x.value = y.value;
+          sync(x, y);
+        }
+        while (ac.length > bc.length) a.removeChild(a.lastChild);
+      })(host, tmp);
     }
     elWidgets.addEventListener("click", function (e) {
       var b = e.target.closest("[data-act]"); if (!b) return; var a = b.getAttribute("data-act");

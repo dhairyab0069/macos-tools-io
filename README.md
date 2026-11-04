@@ -27,23 +27,23 @@ focused or hovered for Start; Ctrl+Cmd+T opens the Ghostty window. Dark mode is 
 
 The page itself is a small workbench, drawn on one canvas with one animation loop:
 
-- **Pegboard background:** dots that glow and shift around the pointer, tool silhouettes (screwdriver, spanners, hammer, nut, tape rule) that drift and lean toward it, a short spark trail and sparks on click, and magnetic buttons.
+- **Pegboard background:** dots that glow and shift around the pointer, tool silhouettes (screwdriver, spanners, hammer, nut, tape rule) that drift and lean toward it, a few sparks when you click bare background, and a soft glow inside buttons (buttons never move).
 - **Toolbox tray:** pick up the DepDeck or Desktop Shell card by its grip, flip it to read the facts, and drop it in the *Now using* slot. That tool's drawn screen lights up and opens. Flip and Use now buttons do the same without dragging.
 - **Feature chips:** each chip lights up the matching part of the drawn screen (for example *Update All* opens the Updates tab and pulses that button; *Aero widgets* unfolds and highlights the widget panel).
-- **Scroll assembly:** parts slide in, bolts tighten and labels snap on as each section arrives.
+- **Scroll assembly:** purely decorative and fast: parts settle the last few pixels and bolts turn as each section arrives. Content is always visible and readable, and nothing plays a sound for it.
 - **How it is built:** an animated diagram for each app, drawn only from what the repositories' READMEs and code do. DepDeck: the three parsers (`brew info --json=v2 --installed`, `npm ls -g` / `npm outdated -g`, `cargo install --list` plus the crates.io API) into `Package` and the Store. Desktop Shell: `launchd`, the four services, `ShellKit` (one settings domain, the changed notification) and a tiling map that uses the same cut rule as the app, with a choice of widget edge.
 - **Dock:** Reset, Shuffle sample data, jump to either tool, and copy the build commands of the tool you are using.
 
 ## Sound, motion and effects
 
-Four icon buttons are fixed at the top right and stay visible while scrolling (icons only, so they fit a phone):
+A three-way theme control and four icon buttons are fixed at the top right and stay visible while scrolling (icons only, so they fit a phone):
 
 | Button | What it switches |
 |---|---|
 | Speaker | Sound |
 | Wave | Motion: the background loop, drift, scroll assembly, diagram flow, widget numbers, and every animation inside both recreations |
-| Burst | Effects: pointer glow, sparks, trail and magnetic buttons |
-| Moon | Quiet everything: all three off; pressed again, the previous state is restored |
+| Burst | Effects: pointer glow, click sparks and the glow inside buttons |
+| Pause ring | Quiet everything: all three off; pressed again, the previous state is restored |
 
 Each is a real button with `aria-pressed`, an `aria-label` that states the state in words (*Sound on*), a tooltip, a 44 px target and a visible focus ring.
 
@@ -55,7 +55,19 @@ pointer, key or touch, so the audio context is created and resumed then. Choices
 The sounds are toolbox sounds synthesized in the browser with the Web Audio API (filtered noise plus a few inharmonic sine partials for metal;
 no audio files, no extra requests): ratchet clicks (Update All is a ratchet run), spanner tightening, screwdriver turns, drawer slides (folders
 open), latch clacks (Start menu), a bolt drop, a measuring-tape snap, a toolbox lid, and a dull clunk for a failed update. Volume is low,
-hover ticks are rate-limited and at most 36 voices sound at once.
+there are no hover sounds, two sounds never start within 30 ms of each other, and at most 36 voices sound at once.
+
+## Theme: light, dark or auto
+
+The page follows one shared setting, the same as every other page on `dhairyab0069.github.io` (one origin, one `localStorage` value):
+key `theme`, values `light`, `dark` or `auto` (absent means auto). An inline script in `<head>` resolves it before the CSS paints and sets
+`data-theme-mode` (what was chosen) and `data-theme` (what shows) plus `style.colorScheme` on `<html>`. The CSS tokens live under
+`:root[data-theme="light"]` (bright workshop) and `:root[data-theme="dark"]` (night workshop), with a `prefers-color-scheme` fallback on
+`:root:not([data-theme])`. The sun, moon and half-circle radio buttons (`role="radiogroup"`, 44 px) sit in the fixed control group. Choosing
+writes the key and dispatches `themechange` on `window`; a change on another page arrives as a `storage` event and applies live; in auto the
+system setting is followed. The canvas re-reads its colours on `themechange`, the DepDeck popover follows light or dark like a real macOS popover,
+and the Luna-blue shell stays Luna blue in both (only its frame changes). The switch is a short circle reveal (View Transition) with a soft
+two-note cue, and instant when motion is off or reduced. `assets/theme.js` holds all of it.
 
 ## Layout
 

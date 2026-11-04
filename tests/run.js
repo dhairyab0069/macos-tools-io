@@ -206,7 +206,7 @@ ok("links go only to the two repos, their owner's pages and the Himawari page", 
   const allowed = [/^https:\/\/github\.com\/dhairyab0069\/(DepDeck|desktop-shell-mac|macos-tools-io)$/, /^https:\/\/dhairyab0069\.github\.io\/(himawari-io\/|macos-tools-io\/)?$/];
   for (const h of hrefs) assert.ok(allowed.some((r) => r.test(h)), "unexpected link " + h);
   assert.ok(hrefs.includes(D.repos.depdeck) && hrefs.includes(D.repos.shell));
-  assert.ok(!/releases/.test(html), "no release link: neither repo has a release yet");
+  assert.ok(!/releases/.test(html), "no release link");
 });
 ok("canonical, Open Graph, icons and images", () => {
   assert.ok(html.includes('<link rel="canonical" href="https://dhairyab0069.github.io/macos-tools-io/">'));

@@ -97,7 +97,7 @@ node tests/run.js        # or: npm test
 
 The tests cover the rules in `logic.js` (including a port of the app's `DesktopLayout.cut`), the
 consistency of the sample data, the symbol sprite, links (only the two repos, their owner's pages and
-Himawari; no release links, because neither repo has a release yet), the absence of external
+Himawari; no release links), the absence of external
 requests, canonical and Open Graph tags, the default-on switches (including Quiet everything and the reduced-motion rule), the sample-data shuffle, and that
 sound is synthesized with no audio files.
 

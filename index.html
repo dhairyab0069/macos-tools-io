@@ -141,7 +141,7 @@
           <span class="bolt b1" aria-hidden="true"></span><span class="bolt b2" aria-hidden="true"></span>
           <button type="button" class="grip" data-do="grip" aria-label="Grip: drag the DepDeck card to the Now using slot, or press Enter to use it"><svg class="i" aria-hidden="true"><use href="#d-grip"/></svg></button>
           <div class="face front"><svg class="tc-ic" aria-hidden="true"><use href="#i-box"/></svg><h3>DepDeck</h3><p>A menu bar manager for Homebrew, npm and cargo tools. Five tabs in a popover.</p></div>
-          <div class="face back" hidden><h3>DepDeck facts</h3><ul><li>macOS 14 or later, a Swift package</li><li>Runs <code>brew</code>, <code>npm</code> and <code>cargo</code> as you, through a login shell</li><li>Only its own request: the crates.io API</li><li>No release yet, build from source</li></ul></div>
+          <div class="face back" hidden><h3>DepDeck facts</h3><ul><li>macOS 14 or later, a Swift package</li><li>Runs <code>brew</code>, <code>npm</code> and <code>cargo</code> as you, through a login shell</li><li>Only its own request: the crates.io API</li><li>Built from source with the Swift toolchain</li></ul></div>
           <div class="tc-actions"><button type="button" class="tbtn" data-do="flip" aria-pressed="false">Flip</button><button type="button" class="tbtn pri" data-do="use">Use now</button></div>
         </article>
         <article class="tcard sh" id="card-sh" data-card="sh" aria-label="Desktop Shell card">
@@ -231,18 +231,12 @@
           <li><b>Issues:</b> deprecated or disabled packages with the reason, a <i>Replace with</i> button when the package manager suggests a successor, and Uninstall.</li>
           <li><b>Search:</b> Homebrew formulae and crates.io, with install from the UI.</li>
         </ul></article>
-      <article class="card"><h3>How the recreation differs</h3>
-        <ul>
-          <li>The packages, versions and deprecation reasons are made up. The real app reads <code>brew info</code>, <code>npm ls -g</code> and <code>cargo install --list</code>.</li>
-          <li>Updates here are timers. The real ones run <code>brew upgrade</code>, <code>npm install -g</code> or <code>cargo install --force</code> as you.</li>
-          <li>The demo switch can fail an update to show the red error banner the app uses.</li>
-        </ul></article>
       <article class="card"><h3>Facts</h3>
         <ul>
           <li>macOS 14 or later, Swift package, built with <code>swift build -c release</code>.</li>
           <li>No special macOS permissions. It runs your package managers through a login shell, and asks crates.io for cargo versions.</li>
           <li>No accounts, analytics or telemetry.</li>
-          <li>No release builds yet: build it from source.</li>
+          <li>Built from source with the Swift toolchain.</li>
         </ul></article>
     </div>
     <div class="built" data-assemble>
@@ -303,13 +297,6 @@
           <li><b>Desktop Widgets:</b> an Aero panel with Now Playing, calendar, battery, CPU and memory, and storage, dockable to any edge.</li>
           <li><b>Desktop Hotkeys:</b> <kbd>Cmd</kbd><kbd>Ctrl</kbd><kbd>T</kbd> opens a Ghostty terminal; tap <kbd>Option</kbd> for Start.</li>
         </ul></article>
-      <article class="card"><h3>How the recreation differs</h3>
-        <ul>
-          <li>Apps, files, folders, the song and the system numbers are sample data. Windows here are drawings that stand in for the real apps.</li>
-          <li>The tiling rule is the real one: widgets, folders and the taskbar reserve strips, and windows are kept in what is left (<i>Keep Windows Clear</i>). Switch on <i>Show reserved strips</i> to see them.</li>
-          <li>The terminal understands <code>desktopctl status|stop|start|restart|disable|enable</code> and acts on the drawn services only.</li>
-          <li>Power buttons do nothing here. On a Mac, macOS asks first.</li>
-        </ul></article>
       <article class="card"><h3>Facts</h3>
         <ul>
           <li>macOS 14.4 or later, Swift package, installed with <code>./install.sh</code>. Launched at login and restarted if it crashes, by <code>launchd</code>.</li>
@@ -337,7 +324,7 @@
   <!-- ================= Build ================= -->
   <section id="build" class="wrap build" aria-labelledby="b-h">
     <h2 id="b-h">Build them yourself</h2>
-    <p class="lede">Neither app has a packaged release yet, so both are built from source with the Swift toolchain (Xcode or the Command Line Tools).</p>
+    <p class="lede">Both apps are built from source with the Swift toolchain (Xcode or the Command Line Tools).</p>
     <div class="cols">
       <div class="code-card">
         <h3>DepDeck</h3>

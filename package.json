@@ -1,0 +1,1 @@
+{ "name": "macos-tools-io", "private": true, "scripts": { "test": "node tests/run.js" } }
